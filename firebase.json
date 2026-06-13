@@ -1,0 +1,26 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "motofix-niger",
+          "appId": "1:343021044668:android:29734f81fe5527dedea1b9",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "motofix-niger",
+          "configurations": {
+            "android": "1:343021044668:android:29734f81fe5527dedea1b9",
+            "web": "1:343021044668:web:1b42548717dc049edea1b9"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

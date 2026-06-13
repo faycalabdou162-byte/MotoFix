@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "343021044668",
+    "project_id": "motofix-niger",
+    "storage_bucket": "motofix-niger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:343021044668:android:29734f81fe5527dedea1b9",
+        "android_client_info": {
+          "package_name": "com.example.motofix_niger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "343021044668-q8558mqsv43p0diip9s5s8o1uaf231oc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.motofix_niger",
+            "certificate_hash": "4bf0a2f00f713d696c822197413330f0243c9621"
+          }
+        },
+        {
+          "client_id": "343021044668-hcuhsjmpc9sh8rm1r66u4o4ilajfre5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDCK4hy7zYhoBy3rOoFxE396hDdzudT-g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "343021044668-hcuhsjmpc9sh8rm1r66u4o4ilajfre5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,62 @@
+Structure du dossier pour le volume Windows_11_Pro
+Le numéro de série du volume est 6896-FD0E
+C:\USERS\FAYÇAL\MOTOFIX_NIGER\LIB
+|   auth_gate.dart
+|   firebase_options.dart
+|   main.dart
+|   
++---core
+|   +---config
+|   |       routes.dart
+|   |       
+|   +---constants
+|   |       app_colors.dart
+|   |       
+|   \---theme
+|           app_theme.dart
+|           
++---models
+|       booking_model.dart
+|       request_model.dart
+|       user_model.dart
+|       
++---pages
+|   |   payment_page.dart
+|   |   
+|   +---admin
+|   |       admin_guard.dart
+|   |       admin_page.dart
+|   |       requests_admin_page.dart
+|   |       
+|   +---auth
+|   |       admin_login.dart
+|   |       login_page.dart
+|   |       register_page.dart
+|   |       
+|   +---home
+|   |       dashboard_page.dart
+|   |       history_page.dart
+|   |       map_page.dart
+|   |       
+|   +---profile
+|   |       profile_page.dart
+|   |       settings_page.dart
+|   |       
+|   +---request
+|   |       request_page.dart
+|   |       
+|   \---services
+|           depannage_page.dart
+|           services_page.dart
+|           taxi_page.dart
+|           
++---services
+|       auth_service.dart
+|       firestore_service.dart
+|       request_service.dart
+|       user_model.dart
+|       
+\---widgets
+        custom_button.dart
+        custom_textfield.dart
+        

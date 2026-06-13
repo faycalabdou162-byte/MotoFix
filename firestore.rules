@@ -1,0 +1,481 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && currentUser().data.role == 'admin'
+        && (
+          !currentUser().data.keys().hasAny(['status'])
+          || currentUser().data.status == 'active'
+        );
+    }
+
+    function isDriver() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && currentUser().data.role == 'driver'
+        && (
+          !currentUser().data.keys().hasAny(['status'])
+          || currentUser().data.status == 'active'
+        );
+    }
+
+    function safeString(value, maxSize) {
+      return value is string && value.size() <= maxSize;
+    }
+
+    function optionalSafeString(data, key, maxSize) {
+      return !data.keys().hasAny([key]) || safeString(data[key], maxSize);
+    }
+
+    function validUserCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'name',
+          'email',
+          'phone',
+          'role',
+          'status',
+          'notificationsEnabled',
+          'defaultAddress',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'name',
+          'email',
+          'phone',
+          'role',
+          'status',
+          'notificationsEnabled',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'client'
+        && request.resource.data.status == 'active'
+        && request.resource.data.notificationsEnabled is bool
+        && safeString(request.resource.data.name, 80)
+        && safeString(request.resource.data.email, 120)
+        && safeString(request.resource.data.phone, 32)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validOwnerUserUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'phone',
+          'defaultAddress',
+          'notificationsEnabled',
+          'updatedAt',
+        ])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && optionalSafeString(request.resource.data, 'name', 80)
+        && optionalSafeString(request.resource.data, 'phone', 32)
+        && optionalSafeString(request.resource.data, 'defaultAddress', 180)
+        && (
+          !request.resource.data.keys().hasAny(['notificationsEnabled'])
+          || request.resource.data.notificationsEnabled is bool
+        )
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAdminUserUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'role',
+          'status',
+          'adminNotes',
+          'updatedAt',
+        ])
+        && request.resource.data.role in ['client', 'driver', 'admin']
+        && request.resource.data.status in ['active', 'suspended']
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validRequestCreate() {
+      return signedIn()
+        && request.resource.data.keys().hasOnly([
+          'type',
+          'userId',
+          'clientName',
+          'email',
+          'phone',
+          'description',
+          'pickupAddress',
+          'pickupLocation',
+          'driverLocation',
+          'destinationAddress',
+          'status',
+          'price',
+          'driverId',
+          'driverName',
+          'driverPhone',
+          'driverVehicle',
+          'driverPlate',
+          'adminNotes',
+          'isActive',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type in ['taxi', 'depannage']
+        && request.resource.data.status == 'en_attente'
+        && request.resource.data.isActive == true
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.driverId == ''
+        && request.resource.data.driverName == ''
+        && request.resource.data.driverPhone == ''
+        && request.resource.data.driverVehicle == ''
+        && request.resource.data.driverPlate == ''
+        && safeString(request.resource.data.clientName, 80)
+        && safeString(request.resource.data.email, 120)
+        && safeString(request.resource.data.phone, 32)
+        && safeString(request.resource.data.description, 600)
+        && safeString(request.resource.data.pickupAddress, 180)
+        && (
+          request.resource.data.pickupLocation == null
+          || request.resource.data.pickupLocation is latlng
+        )
+        && request.resource.data.driverLocation == null
+        && safeString(request.resource.data.destinationAddress, 180)
+        && safeString(request.resource.data.adminNotes, 1000)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validOwnerRequestCancel() {
+      return isOwner(resource.data.userId)
+        && resource.data.status in ['en_attente', 'accepte', 'en_cours']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'isActive',
+          'updatedAt',
+          'cancelledAt',
+        ])
+        && request.resource.data.status == 'annule'
+        && request.resource.data.isActive == false
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.cancelledAt == request.time;
+    }
+
+    function validAdminRequestUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'isActive',
+          'updatedAt',
+          'driverId',
+          'driverName',
+          'driverPhone',
+          'driverVehicle',
+          'driverPlate',
+          'adminNotes',
+          'driverLocation',
+        ])
+        && request.resource.data.status in [
+          'en_attente',
+          'accepte',
+          'en_cours',
+          'termine',
+          'refuse',
+          'annule',
+        ]
+        && request.resource.data.isActive is bool
+        && optionalSafeString(request.resource.data, 'driverId', 120)
+        && optionalSafeString(request.resource.data, 'driverName', 80)
+        && optionalSafeString(request.resource.data, 'driverPhone', 32)
+        && optionalSafeString(request.resource.data, 'driverVehicle', 80)
+        && optionalSafeString(request.resource.data, 'driverPlate', 40)
+        && optionalSafeString(request.resource.data, 'adminNotes', 1000)
+        && (
+          !request.resource.data.keys().hasAny(['driverLocation'])
+          || request.resource.data.driverLocation == null
+          || request.resource.data.driverLocation is latlng
+        )
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validDriverRequestUpdate() {
+      return isDriver()
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            resource.data.status == 'en_attente'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'isActive',
+              'updatedAt',
+              'driverId',
+              'driverName',
+              'driverPhone',
+              'driverVehicle',
+              'driverPlate',
+            ])
+            && request.resource.data.status == 'accepte'
+            && request.resource.data.isActive == true
+            && request.resource.data.driverId == request.auth.uid
+            && optionalSafeString(request.resource.data, 'driverName', 80)
+            && optionalSafeString(request.resource.data, 'driverPhone', 32)
+            && optionalSafeString(request.resource.data, 'driverVehicle', 80)
+            && optionalSafeString(request.resource.data, 'driverPlate', 40)
+          )
+          || (
+            resource.data.status == 'en_attente'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'isActive',
+              'updatedAt',
+            ])
+            && request.resource.data.status == 'refuse'
+            && request.resource.data.isActive == false
+          )
+          || (
+            resource.data.driverId == request.auth.uid
+            && resource.data.status == 'accepte'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'updatedAt',
+            ])
+            && request.resource.data.status == 'en_cours'
+          )
+          || (
+            resource.data.driverId == request.auth.uid
+            && resource.data.status == 'en_cours'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'isActive',
+              'updatedAt',
+              'completedAt',
+            ])
+            && request.resource.data.status == 'termine'
+            && request.resource.data.isActive == false
+            && request.resource.data.completedAt == request.time
+          )
+        );
+    }
+
+    function validDriverWrite() {
+      return request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'name',
+          'phone',
+          'vehicle',
+          'vehicleType',
+          'plateNumber',
+          'rating',
+          'active',
+          'available',
+          'currentLocation',
+          'lastLocationAt',
+          'createdAt',
+          'updatedAt',
+        ])
+        && optionalSafeString(request.resource.data, 'uid', 120)
+        && optionalSafeString(request.resource.data, 'email', 120)
+        && safeString(request.resource.data.name, 80)
+        && safeString(request.resource.data.phone, 32)
+        && safeString(request.resource.data.vehicle, 80)
+        && optionalSafeString(request.resource.data, 'vehicleType', 80)
+        && safeString(request.resource.data.plateNumber, 40)
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 0
+        && request.resource.data.rating <= 5
+        && request.resource.data.active is bool
+        && request.resource.data.available is bool
+        && (
+          !request.resource.data.keys().hasAny(['currentLocation'])
+          || request.resource.data.currentLocation is latlng
+        );
+    }
+
+    function validDriverSelfCreate(driverId) {
+      return isDriver()
+        && request.auth.uid == driverId
+        && validDriverWrite()
+        && request.resource.data.uid == driverId
+        && request.resource.data.active == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validDriverSelfUpdate(driverId) {
+      return isDriver()
+        && request.auth.uid == driverId
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'available',
+          'currentLocation',
+          'lastLocationAt',
+          'updatedAt',
+        ])
+        && request.resource.data.available is bool
+        && (
+          !request.resource.data.keys().hasAny(['currentLocation'])
+          || request.resource.data.currentLocation is latlng
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'lastLocationAt',
+          ])
+          || request.resource.data.lastLocationAt == request.time
+        )
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validPaymentWrite() {
+      return request.resource.data.keys().hasOnly([
+          'userId',
+          'requestId',
+          'amount',
+          'method',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ])
+        && safeString(request.resource.data.userId, 120)
+        && safeString(request.resource.data.requestId, 120)
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && request.resource.data.method in ['cash', 'mobile_money']
+        && request.resource.data.status in ['pending', 'paid', 'failed']
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validSupportCreate() {
+      return signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'email',
+          'subject',
+          'message',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'open'
+        && safeString(request.resource.data.email, 120)
+        && safeString(request.resource.data.subject, 120)
+        && safeString(request.resource.data.message, 1200)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    function validAddressWrite() {
+      return request.resource.data.keys().hasOnly([
+          'label',
+          'address',
+          'createdAt',
+          'updatedAt',
+        ])
+        && safeString(request.resource.data.label, 60)
+        && safeString(request.resource.data.address, 180);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if validUserCreate(userId);
+      allow update: if (isOwner(userId) && validOwnerUserUpdate())
+        || (isAdmin() && validAdminUserUpdate());
+      allow delete: if isAdmin();
+
+      match /addresses/{addressId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if (isOwner(userId) || isAdmin())
+          && validAddressWrite()
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow update: if (isOwner(userId) || isAdmin())
+          && validAddressWrite()
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /requests/{requestId} {
+      allow create: if validRequestCreate();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (
+          isDriver()
+          && (
+            resource.data.status == 'en_attente'
+            || resource.data.driverId == request.auth.uid
+          )
+        );
+      allow update: if validOwnerRequestCancel()
+        || (isAdmin() && validAdminRequestUpdate())
+        || validDriverRequestUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isAdmin() || (isDriver() && request.auth.uid == driverId);
+      allow create: if (isAdmin()
+        && validDriverWrite()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time)
+        || validDriverSelfCreate(driverId);
+      allow update: if (isAdmin()
+        && validDriverWrite()
+        && request.resource.data.updatedAt == request.time)
+        || validDriverSelfUpdate(driverId);
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() && validPaymentWrite();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt',
+        ])
+        && request.resource.data.status in ['pending', 'paid', 'failed']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if validSupportCreate();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'adminNotes',
+          'updatedAt',
+        ])
+        && request.resource.data.status in ['open', 'closed']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

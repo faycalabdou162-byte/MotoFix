@@ -3,8 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/constants/app_spacing.dart';
 import '../../core/theme/motofix_ui.dart';
+import '../../features/map/presentation/live_tracking_page.dart';
 import '../../models/request_model.dart';
+import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/modern_bottom_nav.dart';
+import '../../shared/widgets/skeleton_loader.dart';
+import '../notifications_page.dart';
 import '../profile/profile_page.dart';
 import '../request/request_page.dart';
 import '../services/depannage_page.dart';
@@ -29,54 +35,28 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MotoFixUi.page(
-      child: pages[currentIndex],
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF071322),
-          indicatorColor: Colors.transparent,
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => TextStyle(
-              color: states.contains(WidgetState.selected)
-                  ? MotoFixUi.orange
-                  : MotoFixUi.textSoft,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+    return Scaffold(
+      body: pages[currentIndex],
+      bottomNavigationBar: ModernBottomNav(
+        currentIndex: currentIndex,
+        onTap: (index) => setState(() => currentIndex = index),
+        items: const [
+          ModernNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Accueil',
           ),
-          iconTheme: WidgetStateProperty.resolveWith(
-            (states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? MotoFixUi.orange
-                  : MotoFixUi.textSoft,
-              size: 23,
-            ),
+          ModernNavItem(
+            icon: Icons.receipt_long_outlined,
+            activeIcon: Icons.receipt_long,
+            label: 'Historique',
           ),
-        ),
-        child: NavigationBar(
-          height: 62,
-          selectedIndex: currentIndex,
-          onDestinationSelected: (index) {
-            setState(() => currentIndex = index);
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Accueil',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Historique',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profil',
-            ),
-          ],
-        ),
+          ModernNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: 'Profil',
+          ),
+        ],
       ),
     );
   }
@@ -128,11 +108,11 @@ class HomeContent extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 _ServiceCard(
-                  title: 'Demander un',
-                  strong: 'DEPANNAGE',
+                  title: '1 clic —',
+                  strong: 'DÉPANNAGE',
                   icon: Icons.build,
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF6A55C9), Color(0xFF37246F)],
+                    colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -177,16 +157,13 @@ class HomeContent extends StatelessWidget {
                   ],
                 ),
                 if (snapshot.connectionState == ConnectionState.waiting)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: CircularProgressIndicator(
-                        color: MotoFixUi.orange,
-                      ),
-                    ),
-                  )
+                  const SkeletonLoader(height: 72, count: 3)
                 else if (docs.isEmpty)
-                  const _HistoryPreviewEmpty()
+                  const EmptyState(
+                    icon: Icons.history_rounded,
+                    title: 'Aucune demande récente',
+                    subtitle: 'Vos dépannages et courses apparaîtront ici.',
+                  )
                 else
                   for (final doc in docs)
                     _HistoryPreview(id: doc.id, data: doc.data()),
@@ -214,11 +191,15 @@ class _HomeHeader extends StatelessWidget {
             Stack(
               children: [
                 IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.notifications_none,
-                    color: Colors.white,
-                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.notifications_none),
                 ),
                 Positioned(
                   right: 12,
@@ -293,14 +274,14 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
       onTap: onTap,
       child: Ink(
         height: 102,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
         child: Row(
           children: [
@@ -371,10 +352,20 @@ class _HistoryPreview extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => RequestPage(requestId: id)),
-          );
+          final status = data['status']?.toString() ?? '';
+          if (RequestStatus.activeStatuses.contains(status)) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LiveTrackingPage(requestId: id),
+              ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => RequestPage(requestId: id)),
+            );
+          }
         },
         child: Ink(
           padding: const EdgeInsets.all(12),
@@ -447,23 +438,5 @@ class _HistoryPreview extends StatelessWidget {
       RequestStatus.refused || RequestStatus.cancelled => Colors.redAccent,
       _ => Colors.grey,
     };
-  }
-}
-
-class _HistoryPreviewEmpty extends StatelessWidget {
-  const _HistoryPreviewEmpty();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: MotoFixUi.panelDecoration(radius: 8),
-      child: const Text(
-        'Aucune demande recente',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: MotoFixUi.textSoft),
-      ),
-    );
   }
 }

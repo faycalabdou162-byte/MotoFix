@@ -46,7 +46,7 @@ class RevenueService {
   }
 
   RevenueSummary summarize(List<RequestModel> requests) {
-    final total = requests.fold<int>(0, (sum, request) => sum + request.price);
+    final total = requests.fold<int>(0, (total, request) => total + request.price);
     final commission = (total * commissionRate).round();
     return RevenueSummary(
       totalRevenue: total,

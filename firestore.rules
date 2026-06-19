@@ -84,6 +84,7 @@ service cloud.firestore {
           'phone',
           'defaultAddress',
           'notificationsEnabled',
+          'fcmToken',
           'updatedAt',
         ])
         && request.resource.data.uid == resource.data.uid
@@ -93,6 +94,7 @@ service cloud.firestore {
         && optionalSafeString(request.resource.data, 'name', 80)
         && optionalSafeString(request.resource.data, 'phone', 32)
         && optionalSafeString(request.resource.data, 'defaultAddress', 180)
+        && optionalSafeString(request.resource.data, 'fcmToken', 512)
         && (
           !request.resource.data.keys().hasAny(['notificationsEnabled'])
           || request.resource.data.notificationsEnabled is bool
@@ -127,6 +129,8 @@ service cloud.firestore {
           'destinationAddress',
           'status',
           'price',
+          'distanceKm',
+          'durationMinutes',
           'driverId',
           'driverName',
           'driverPhone',
@@ -143,6 +147,14 @@ service cloud.firestore {
         && request.resource.data.isActive == true
         && request.resource.data.price is number
         && request.resource.data.price >= 0
+        && (
+          !request.resource.data.keys().hasAny(['distanceKm'])
+          || request.resource.data.distanceKm is number
+        )
+        && (
+          !request.resource.data.keys().hasAny(['durationMinutes'])
+          || request.resource.data.durationMinutes is int
+        )
         && request.resource.data.driverId == ''
         && request.resource.data.driverName == ''
         && request.resource.data.driverPhone == ''
@@ -191,11 +203,17 @@ service cloud.firestore {
           'driverPlate',
           'adminNotes',
           'driverLocation',
+          'distanceKm',
+          'durationMinutes',
+          'dispatchScore',
+          'dispatchedAt',
+          'dispatchMode',
         ])
         && request.resource.data.status in [
           'en_attente',
           'accepte',
           'en_cours',
+          'arrive',
           'termine',
           'refuse',
           'annule',
@@ -207,6 +225,22 @@ service cloud.firestore {
         && optionalSafeString(request.resource.data, 'driverVehicle', 80)
         && optionalSafeString(request.resource.data, 'driverPlate', 40)
         && optionalSafeString(request.resource.data, 'adminNotes', 1000)
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['distanceKm'])
+          || request.resource.data.distanceKm is number
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['durationMinutes'])
+          || request.resource.data.durationMinutes is int
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['dispatchScore'])
+          || request.resource.data.dispatchScore is number
+        )
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['dispatchMode'])
+          || request.resource.data.dispatchMode in ['auto', 'broadcast', 'manual']
+        )
         && (
           !request.resource.data.keys().hasAny(['driverLocation'])
           || request.resource.data.driverLocation == null
@@ -257,6 +291,24 @@ service cloud.firestore {
               'updatedAt',
             ])
             && request.resource.data.status == 'en_cours'
+          )
+          || (
+            resource.data.driverId == request.auth.uid
+            && resource.data.status == 'en_cours'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'updatedAt',
+            ])
+            && request.resource.data.status == 'arrive'
+          )
+          || (
+            resource.data.driverId == request.auth.uid
+            && resource.data.status == 'arrive'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'status',
+              'updatedAt',
+            ])
+            && request.resource.data.status == 'termine'
           )
           || (
             resource.data.driverId == request.auth.uid
@@ -347,20 +399,48 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
           'userId',
           'requestId',
+          'driverId',
           'amount',
           'method',
+          'phone',
           'status',
+          'commissionAmount',
           'createdAt',
           'updatedAt',
         ])
         && safeString(request.resource.data.userId, 120)
         && safeString(request.resource.data.requestId, 120)
+        && optionalSafeString(request.resource.data, 'driverId', 120)
+        && optionalSafeString(request.resource.data, 'phone', 32)
         && request.resource.data.amount is number
         && request.resource.data.amount >= 0
-        && request.resource.data.method in ['cash', 'mobile_money']
+        && (
+          !request.resource.data.keys().hasAny(['commissionAmount'])
+          || (
+            request.resource.data.commissionAmount is number
+            && request.resource.data.commissionAmount >= 0
+          )
+        )
+        && request.resource.data.method in [
+          'cash',
+          'airtel_money',
+          'zamani_cash',
+          'amana_transfer',
+          'nita_transfer',
+          'moov_money',
+          'mobile_money',
+          'card',
+        ]
         && request.resource.data.status in ['pending', 'paid', 'failed']
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
+    }
+
+    function validClientPaymentCreate() {
+      return signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && validPaymentWrite();
     }
 
     function validSupportCreate() {
@@ -412,6 +492,61 @@ service cloud.firestore {
           && request.resource.data.updatedAt == request.time;
         allow delete: if isOwner(userId) || isAdmin();
       }
+
+      match /emergencyContacts/{contactId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly([
+            'name',
+            'phone',
+            'createdAt',
+            'updatedAt',
+          ])
+          && safeString(request.resource.data.name, 80)
+          && safeString(request.resource.data.phone, 32)
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow update: if isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'phone',
+            'updatedAt',
+          ])
+          && safeString(request.resource.data.name, 80)
+          && safeString(request.resource.data.phone, 32)
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin()
+          || (
+            isOwner(userId)
+            && request.resource.data.keys().hasOnly([
+              'title',
+              'message',
+              'icon',
+              'requestId',
+              'read',
+              'createdAt',
+              'updatedAt',
+            ])
+            && safeString(request.resource.data.title, 120)
+            && safeString(request.resource.data.message, 600)
+            && request.resource.data.read is bool
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.updatedAt == request.time
+          );
+        allow update: if (isOwner(userId) || isAdmin())
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'read',
+            'updatedAt',
+          ])
+          && request.resource.data.read is bool
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isOwner(userId) || isAdmin();
+      }
     }
 
     match /requests/{requestId} {
@@ -429,6 +564,47 @@ service cloud.firestore {
         || (isAdmin() && validAdminRequestUpdate())
         || validDriverRequestUpdate();
       allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isAdmin()
+          || (
+            signedIn()
+            && exists(/databases/$(database)/documents/requests/$(requestId))
+            && (
+              get(/databases/$(database)/documents/requests/$(requestId)).data.userId
+                == request.auth.uid
+              || get(/databases/$(database)/documents/requests/$(requestId)).data.driverId
+                == request.auth.uid
+            )
+          );
+        allow create: if signedIn()
+          && exists(/databases/$(database)/documents/requests/$(requestId))
+          && (
+            get(/databases/$(database)/documents/requests/$(requestId)).data.userId
+              == request.auth.uid
+            || (
+              isDriver()
+              && get(/databases/$(database)/documents/requests/$(requestId)).data.driverId
+                == request.auth.uid
+            )
+          )
+          && request.resource.data.keys().hasOnly([
+            'senderId',
+            'senderName',
+            'senderRole',
+            'type',
+            'text',
+            'photoUrl',
+            'voiceUrl',
+            'location',
+            'createdAt',
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.type in ['text', 'location', 'photo', 'voice']
+          && optionalSafeString(request.resource.data, 'text', 1200)
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
 
     match /drivers/{driverId} {
@@ -448,10 +624,12 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isAdmin()
         || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin() && validPaymentWrite();
+      allow create: if (isAdmin() && validPaymentWrite())
+        || validClientPaymentCreate();
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status',
+          'commissionAmount',
           'updatedAt',
         ])
         && request.resource.data.status in ['pending', 'paid', 'failed']
@@ -471,6 +649,124 @@ service cloud.firestore {
         ])
         && request.resource.data.status in ['open', 'closed']
         && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'driverId',
+          'requestId',
+          'score',
+          'comment',
+          'createdAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.score is int
+        && request.resource.data.score >= 1
+        && request.resource.data.score <= 5
+        && optionalSafeString(request.resource.data, 'comment', 600)
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if isAdmin();
+    }
+
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /promotions/{promotionId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /serviceZones/{zoneId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /safetyReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'email',
+          'requestId',
+          'type',
+          'message',
+          'location',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type in ['sos', 'signalement']
+        && request.resource.data.status == 'open'
+        && safeString(request.resource.data.message, 1200)
+        && optionalSafeString(request.resource.data, 'requestId', 120)
+        && optionalSafeString(request.resource.data, 'email', 120)
+        && (
+          !request.resource.data.keys().hasAny(['location'])
+          || request.resource.data.location == null
+          || request.resource.data.location is latlng
+        )
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'adminNotes',
+          'updatedAt',
+        ])
+        && request.resource.data.status in ['open', 'closed']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isAdmin();
+    }
+
+    match /driverVerifications/{driverId} {
+      allow read: if isAdmin() || (isDriver() && request.auth.uid == driverId);
+      allow create: if isDriver()
+        && request.auth.uid == driverId
+        && request.resource.data.keys().hasOnly([
+          'driverId',
+          'cni',
+          'permis',
+          'carteGrise',
+          'vehiclePhotoUrl',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.driverId == driverId
+        && request.resource.data.status == 'pending'
+        && safeString(request.resource.data.cni, 80)
+        && safeString(request.resource.data.permis, 80)
+        && safeString(request.resource.data.carteGrise, 80)
+        && safeString(request.resource.data.vehiclePhotoUrl, 500)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if (isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'adminNotes',
+          'updatedAt',
+        ])
+        && request.resource.data.status in ['pending', 'approved', 'rejected']
+        && request.resource.data.updatedAt == request.time)
+        || (isDriver()
+          && request.auth.uid == driverId
+          && resource.data.status == 'pending'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'cni',
+            'permis',
+            'carteGrise',
+            'vehiclePhotoUrl',
+            'updatedAt',
+          ])
+          && request.resource.data.updatedAt == request.time);
       allow delete: if isAdmin();
     }
 

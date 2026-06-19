@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/request_model.dart';
-import 'request_service.dart';
+import '../features/request/domain/repositories/request_repository.dart';
 
 class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
@@ -35,7 +35,7 @@ class FirestoreService {
           : pickupAddress.trim(),
       'destinationAddress': destinationAddress.trim(),
       'status': RequestStatus.pending,
-      'price': RequestService.defaultPriceFor(type),
+      'price': RequestRepository.defaultPriceFor(type),
       'driverId': '',
       'driverName': '',
       'driverPhone': '',

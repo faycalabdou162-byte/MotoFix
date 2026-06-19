@@ -216,11 +216,11 @@ class AdminService {
         .where('status', isEqualTo: 'paid')
         .limit(200)
         .get();
-    final totalRevenue = paidPayments.docs.fold<int>(0, (sum, doc) {
+    final totalRevenue = paidPayments.docs.fold<int>(0, (total, doc) {
       final amount = doc.data()['amount'];
-      if (amount is int) return sum + amount;
-      if (amount is num) return sum + amount.round();
-      return sum;
+      if (amount is int) return total + amount;
+      if (amount is num) return total + amount.round();
+      return total;
     });
 
     return AdminStats(

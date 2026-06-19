@@ -1,17 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/app_colors.dart';
+import '../../core/services/theme_service.dart';
 import '../../core/theme/motofix_ui.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool saving = false;
 
   Future<void> _updateNotifications(bool enabled) async {
@@ -47,10 +50,25 @@ class _SettingsPageState extends State<SettingsPage> {
           builder: (context, snapshot) {
             final enabled =
                 snapshot.data?.data()?['notificationsEnabled'] as bool? ?? true;
+            final themeMode = ref.watch(themeModeProvider);
+            final isDark = themeMode == ThemeMode.dark ||
+                (themeMode == ThemeMode.system &&
+                    MediaQuery.platformBrightnessOf(context) ==
+                        Brightness.dark);
 
             return ListView(
               padding: const EdgeInsets.all(18),
               children: [
+                _SettingsTile(
+                  icon: Icons.dark_mode_outlined,
+                  title: 'Mode sombre',
+                  subtitle: isDark ? 'Activé' : 'Désactivé',
+                  trailing: Switch(
+                    value: isDark,
+                    activeThumbColor: AppColors.primary,
+                    onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+                  ),
+                ),
                 _SettingsTile(
                   icon: Icons.notifications_none,
                   title: 'Notifications',

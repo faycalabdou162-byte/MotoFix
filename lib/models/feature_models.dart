@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class ChatMessageType {
   static const text = 'text';
@@ -66,19 +67,53 @@ class PaymentMethod {
   static const cash = 'cash';
   static const airtelMoney = 'airtel_money';
   static const zamaniCash = 'zamani_cash';
+  static const amanaTransfer = 'amana_transfer';
+  static const nitaTransfer = 'nita_transfer';
+  /// Legacy methods kept for existing Firestore records.
   static const moovMoney = 'moov_money';
   static const card = 'card';
 
-  static const all = {cash, airtelMoney, zamaniCash, moovMoney, card};
+  static const all = {
+    cash,
+    airtelMoney,
+    zamaniCash,
+    amanaTransfer,
+    nitaTransfer,
+    moovMoney,
+    card,
+  };
+
+  static const clientMethods = {
+    cash,
+    airtelMoney,
+    zamaniCash,
+    amanaTransfer,
+    nitaTransfer,
+  };
 
   static String label(String method) {
     return switch (method) {
-      cash => 'Especes',
+      cash => 'Espèces',
       airtelMoney => 'Airtel Money',
       zamaniCash => 'Zamani Cash',
+      amanaTransfer => 'Amana Transfer',
+      nitaTransfer => 'Nita Transfer',
       moovMoney => 'Moov Money',
       card => 'Carte bancaire',
       _ => 'Paiement',
+    };
+  }
+
+  static IconData icon(String method) {
+    return switch (method) {
+      cash => Icons.payments_outlined,
+      airtelMoney => Icons.phone_android,
+      zamaniCash => Icons.account_balance_wallet_outlined,
+      amanaTransfer => Icons.swap_horiz_rounded,
+      nitaTransfer => Icons.send_rounded,
+      moovMoney => Icons.phone_iphone,
+      card => Icons.credit_card,
+      _ => Icons.payment,
     };
   }
 }

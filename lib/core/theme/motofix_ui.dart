@@ -1,29 +1,24 @@
 import 'package:flutter/material.dart';
 
-class MotoFixUi {
-  static const bg = Color(0xFF06111F);
-  static const bgDeep = Color(0xFF020B16);
-  static const panel = Color(0xFF0D1A2B);
-  static const panel2 = Color(0xFF13243A);
-  static const orange = Color(0xFFFF8300);
-  static const orange2 = Color(0xFFFFA21A);
-  static const purple = Color(0xFF453A8F);
-  static const green = Color(0xFF48C847);
-  static const textSoft = Color(0xFFB8C4D3);
+import '../constants/app_colors.dart';
 
-  static const gradient = LinearGradient(
-    colors: [orange2, orange],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+/// Legacy UI kit — updated to use brand tokens; kept for existing screens.
+class MotoFixUi {
+  static const bg = AppColors.dark;
+  static const bgDeep = Color(0xFF020617);
+  static const panel = AppColors.darkSurface;
+  static const panel2 = AppColors.darkCard;
+  static const orange = AppColors.primary;
+  static const orange2 = AppColors.primaryLight;
+  static const purple = Color(0xFF6366F1);
+  static const green = AppColors.success;
+  static const textSoft = AppColors.textMuted;
+
+  static const gradient = AppColors.primaryGradient;
 
   static BoxDecoration screenDecoration() {
     return const BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Color(0xFF06111F), Color(0xFF020A14)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ),
+      gradient: AppColors.darkGradient,
     );
   }
 
@@ -127,7 +122,7 @@ class MotoFixButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: onPressed == null ? null : MotoFixUi.gradient,
           color: onPressed == null ? Colors.white12 : null,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: ElevatedButton(
           onPressed: loading ? null : onPressed,
@@ -136,7 +131,7 @@ class MotoFixButton extends StatelessWidget {
             shadowColor: Colors.transparent,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
           child: content,

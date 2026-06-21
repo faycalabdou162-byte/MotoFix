@@ -1,45 +1,9 @@
-name: motofix_niger
-description: MotoFix Niger
-publish_to: 'none'
-
-version: 1.0.0+1
+name: urban_mobility_ai_platform_workspace
+description: Workspace racine pour la plateforme de mobilité IA.
+publish_to: none
 
 environment:
   sdk: ">=3.8.0 <4.0.0"
 
-dependencies:
-  flutter:
-    sdk: flutter
-
-  intl: ^0.20.2
-
-  cupertino_icons: ^1.0.8
-
-  firebase_core: ^4.0.0
-  firebase_auth: ^6.0.0
-  cloud_firestore: ^6.0.0
-
-  google_maps_flutter: ^2.12.0
-  geolocator: ^14.0.0
-
-  curved_navigation_bar: ^1.0.6
-  firebase_messaging: ^16.3.0
-  flutter_riverpod: ^3.3.2
-  google_fonts: ^8.1.0
-  shimmer: ^3.0.0
-  cached_network_image: ^3.4.1
-  shared_preferences: ^2.5.5
-  flutter_animate: ^4.5.2
-  equatable: ^2.0.8
-
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  flutter_lints: ^6.0.0
-
-flutter:
-  uses-material-design: true
-
-  assets:
-    - assets/images/
+  melos: ^6.3.3

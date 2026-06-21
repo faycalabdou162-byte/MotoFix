@@ -1,0 +1,11 @@
+name: ui_kit
+description: Shared design system for Urban Mobility platform apps.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

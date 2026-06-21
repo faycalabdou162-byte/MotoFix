@@ -1,0 +1,10 @@
+name: networking
+description: HTTP client and request models for Urban Mobility apps.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  dio: ^5.8.0+1

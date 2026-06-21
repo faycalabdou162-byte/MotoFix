@@ -1,0 +1,13 @@
+name: urban_mobility_ai_platform
+
+packages:
+  - apps/**
+  - packages/dart/**
+
+scripts:
+  analyze:
+    run: dart analyze .
+    description: Static analysis across Dart apps and packages.
+  test:
+    run: dart test
+    description: Run Dart tests where available.

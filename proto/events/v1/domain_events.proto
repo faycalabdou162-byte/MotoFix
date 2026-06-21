@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package events.v1;
+
+option go_package = "github.com/urbanmobilityai/platform/proto/events/v1;eventsv1";
+
+message EventEnvelope {
+  string event_id = 1;
+  string event_type = 2;
+  string aggregate_id = 3;
+  string city_code = 4;
+  int64 occurred_at_unix = 5;
+  bytes payload = 6;
+}

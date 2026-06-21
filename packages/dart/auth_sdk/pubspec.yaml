@@ -1,0 +1,10 @@
+name: auth_sdk
+description: Shared auth adapters for Firebase session exchange.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  firebase_auth: ^6.0.0

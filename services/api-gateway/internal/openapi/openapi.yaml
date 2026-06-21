@@ -1,0 +1,29 @@
+openapi: 3.1.0
+info:
+  title: Urban Mobility API Gateway
+  version: 1.0.0
+paths:
+  /healthz:
+    get:
+      summary: Health endpoint
+      responses:
+        "200":
+          description: OK
+  /v1/auth/session/exchange:
+    post:
+      summary: Exchange Firebase token for internal session
+      responses:
+        "202":
+          description: Accepted
+  /v1/me:
+    get:
+      summary: Get current profile
+      responses:
+        "200":
+          description: OK
+  /v1/trips/quote:
+    post:
+      summary: Create trip quote request
+      responses:
+        "202":
+          description: Accepted

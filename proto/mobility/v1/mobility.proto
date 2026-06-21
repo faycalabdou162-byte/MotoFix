@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package mobility.v1;
+
+option go_package = "github.com/urbanmobilityai/platform/proto/mobility/v1;mobilityv1";
+
+message TripRequest {
+  string trip_id = 1;
+  string user_id = 2;
+  string city_code = 3;
+  string service_type = 4;
+  double pickup_lat = 5;
+  double pickup_lng = 6;
+  double destination_lat = 7;
+  double destination_lng = 8;
+}
+
+message DispatchDecision {
+  string trip_id = 1;
+  string selected_driver_id = 2;
+  double dispatch_score = 3;
+  int32 eta_seconds = 4;
+}

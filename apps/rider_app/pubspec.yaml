@@ -1,0 +1,25 @@
+name: rider_app
+description: Rider mobile application for Urban Mobility AI Platform.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  go_router: ^15.1.2
+  app_core:
+    path: ../../packages/dart/app_core
+  ui_kit:
+    path: ../../packages/dart/ui_kit
+  networking:
+    path: ../../packages/dart/networking
+  auth_sdk:
+    path: ../../packages/dart/auth_sdk
+  mapbox_sdk:
+    path: ../../packages/dart/mapbox_sdk
+  realtime_sdk:
+    path: ../../packages/dart/realtime_sdk

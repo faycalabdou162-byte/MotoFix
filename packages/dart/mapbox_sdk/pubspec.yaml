@@ -1,0 +1,10 @@
+name: mapbox_sdk
+description: Shared Mapbox wrappers for rider, driver and admin apps.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+
+dependencies:
+  mapbox_maps_flutter: ^2.8.0

@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -17,7 +15,6 @@ import (
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/domain"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/events"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/config"
-	fb "github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/firebase"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/health"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httpserver"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httputil"
@@ -40,18 +37,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	var creds []byte
-	if b64 := os.Getenv("FIREBASE_ADMIN_CREDENTIALS_B64"); b64 != "" {
-		decoded, err := base64.StdEncoding.DecodeString(b64)
-		if err == nil {
-			creds = decoded
-		}
-	}
-	verifier, err := fb.NewAuthVerifier(ctx, cfg.FirebaseProjectID, creds)
-	if err != nil {
-		panic(err)
-	}
-
 	producer := kafka.NewProducer(cfg.KafkaBrokers, "mobility-events")
 	defer func() { _ = producer.Close() }()
 
@@ -61,7 +46,7 @@ func main() {
 	r.Mount("/", health.Router())
 
 	r.Route("/v1/payments", func(r chi.Router) {
-		r.Use(middleware.FirebaseAuth(verifier))
+		r.Use(middleware.InternalAuth(cfg.InternalJWTSecret))
 
 		r.Post("/authorize", func(w http.ResponseWriter, r *http.Request) {
 			var req authorizeRequest
@@ -70,6 +55,15 @@ func main() {
 				return
 			}
 			if req.CityID == "" || req.TripID == "" || req.Amount.Currency == "" || req.Amount.Amount <= 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
+			if !ok {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if req.CityID != claims.CityID {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -112,4 +106,3 @@ func newID() string {
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
 }
-

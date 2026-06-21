@@ -1,6 +1,7 @@
 resources:
   - namespace.yaml
   - mobility-events-topic.yaml
+  - api-gateway.yaml
   - auth-service.yaml
   - user-service.yaml
   - driver-service.yaml
@@ -11,4 +12,3 @@ resources:
   - payment-service.yaml
   - notification-service.yaml
   - analytics-service.yaml
-

@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -17,7 +15,6 @@ import (
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/domain"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/events"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/config"
-	fb "github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/firebase"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/health"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httpserver"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httputil"
@@ -56,18 +53,6 @@ func main() {
 	}
 	defer db.Close()
 
-	var creds []byte
-	if b64 := os.Getenv("FIREBASE_ADMIN_CREDENTIALS_B64"); b64 != "" {
-		decoded, err := base64.StdEncoding.DecodeString(b64)
-		if err == nil {
-			creds = decoded
-		}
-	}
-	verifier, err := fb.NewAuthVerifier(ctx, cfg.FirebaseProjectID, creds)
-	if err != nil {
-		panic(err)
-	}
-
 	repo := trip.NewRepository(db)
 	producer := kafka.NewProducer(cfg.KafkaBrokers, "mobility-events")
 	defer func() { _ = producer.Close() }()
@@ -78,7 +63,7 @@ func main() {
 	r.Mount("/", health.Router())
 
 	r.Route("/v1/trips", func(r chi.Router) {
-		r.Use(middleware.FirebaseAuth(verifier))
+		r.Use(middleware.InternalAuth(cfg.InternalJWTSecret))
 
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var req createTripRequest
@@ -90,16 +75,20 @@ func main() {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			tok, ok := middleware.FirebaseTokenFromContext(r.Context())
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
 			if !ok {
 				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if req.CityID != claims.CityID {
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
 			t := trip.Trip{
 				ID:          newID(),
 				CityID:      req.CityID,
-				UserID:      tok.UID,
+				UserID:      claims.Subject,
 				VehicleType: req.VehicleType,
 				Status:      domain.TripRequested,
 				Pickup:      req.Pickup,
@@ -134,6 +123,19 @@ func main() {
 			}
 			if req.CityID == "" || req.TripID == "" || req.DriverID == "" {
 				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
+			if !ok {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if req.CityID != claims.CityID || req.DriverID != claims.Subject {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if claims.Role != "driver" {
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 			if err := repo.UpdateStatus(r.Context(), req.CityID, req.TripID, string(domain.TripAccepted), req.DriverID); err != nil {
@@ -179,4 +181,3 @@ func newID() string {
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
 }
-

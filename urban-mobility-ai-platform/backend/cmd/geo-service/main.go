@@ -36,6 +36,7 @@ func main() {
 	r.Mount("/", health.Router())
 
 	r.Route("/v1/geo", func(r chi.Router) {
+		r.Use(middleware.InternalAuth(cfg.InternalJWTSecret))
 		r.Post("/eta", func(w http.ResponseWriter, r *http.Request) {
 			var req etaRequest
 			if err := decodeJSON(r, &req); err != nil {

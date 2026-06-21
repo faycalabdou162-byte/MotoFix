@@ -2,17 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/config"
-	fb "github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/firebase"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/health"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httpserver"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httputil"
@@ -39,18 +36,6 @@ func main() {
 	}
 	defer db.Close()
 
-	var creds []byte
-	if b64 := os.Getenv("FIREBASE_ADMIN_CREDENTIALS_B64"); b64 != "" {
-		decoded, err := base64.StdEncoding.DecodeString(b64)
-		if err == nil {
-			creds = decoded
-		}
-	}
-	verifier, err := fb.NewAuthVerifier(ctx, cfg.FirebaseProjectID, creds)
-	if err != nil {
-		panic(err)
-	}
-
 	repo := user.NewRepository(db)
 
 	r := chi.NewRouter()
@@ -59,20 +44,15 @@ func main() {
 	r.Mount("/", health.Router())
 
 	r.Route("/v1/users", func(r chi.Router) {
-		r.Use(middleware.FirebaseAuth(verifier))
+		r.Use(middleware.InternalAuth(cfg.InternalJWTSecret))
 
 		r.Get("/me", func(w http.ResponseWriter, r *http.Request) {
-			tok, ok := middleware.FirebaseTokenFromContext(r.Context())
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
 			if !ok {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-			cityID := r.URL.Query().Get("cityId")
-			if cityID == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			u, err := repo.Get(r.Context(), cityID, tok.UID)
+			u, err := repo.Get(r.Context(), claims.CityID, claims.Subject)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -86,18 +66,18 @@ func main() {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if req.CityID == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			tok, ok := middleware.FirebaseTokenFromContext(r.Context())
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
 			if !ok {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
+			if req.CityID != "" && req.CityID != claims.CityID {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 			u, err := repo.Upsert(r.Context(), user.User{
-				ID:     tok.UID,
-				CityID: req.CityID,
+				ID:     claims.Subject,
+				CityID: claims.CityID,
 				Phone:  req.Phone,
 				Name:   req.Name,
 			})

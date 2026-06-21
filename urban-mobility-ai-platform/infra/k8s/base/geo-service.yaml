@@ -21,6 +21,11 @@ spec:
           env:
             - name: HTTP_ADDR
               value: ":8080"
+            - name: INTERNAL_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: internal-jwt
+                  key: secret
 ---
 apiVersion: v1
 kind: Service
@@ -33,4 +38,3 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
-

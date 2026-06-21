@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -18,7 +16,6 @@ import (
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/domain"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/events"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/config"
-	fb "github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/firebase"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/health"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httpserver"
 	"github.com/motofix/urban-mobility-ai-platform/backend/internal/platform/httputil"
@@ -50,18 +47,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	var creds []byte
-	if b64 := os.Getenv("FIREBASE_ADMIN_CREDENTIALS_B64"); b64 != "" {
-		decoded, err := base64.StdEncoding.DecodeString(b64)
-		if err == nil {
-			creds = decoded
-		}
-	}
-	verifier, err := fb.NewAuthVerifier(ctx, cfg.FirebaseProjectID, creds)
-	if err != nil {
-		panic(err)
-	}
-
 	redisClient, err := redisp.Connect(cfg.RedisAddr, cfg.RedisPass)
 	if err != nil {
 		panic(err)
@@ -77,7 +62,7 @@ func main() {
 	r.Mount("/", health.Router())
 
 	r.Route("/v1/drivers", func(r chi.Router) {
-		r.Use(middleware.FirebaseAuth(verifier))
+		r.Use(middleware.InternalAuth(cfg.InternalJWTSecret))
 
 		r.Post("/availability", func(w http.ResponseWriter, r *http.Request) {
 			var req availabilityRequest
@@ -87,6 +72,15 @@ func main() {
 			}
 			if req.CityID == "" || req.DriverID == "" || req.Vehicle == "" {
 				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
+			if !ok {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if claims.Role != "driver" || claims.CityID != req.CityID || claims.Subject != req.DriverID {
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 			if req.Timestamp.IsZero() {
@@ -124,6 +118,15 @@ func main() {
 			}
 			if req.CityID == "" || req.DriverID == "" || req.Vehicle == "" {
 				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			claims, ok := middleware.InternalClaimsFromContext(r.Context())
+			if !ok {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if claims.Role != "driver" || claims.CityID != req.CityID || claims.Subject != req.DriverID {
+				w.WriteHeader(http.StatusForbidden)
 				return
 			}
 			if req.Timestamp.IsZero() {

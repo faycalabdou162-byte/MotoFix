@@ -1,0 +1,14 @@
+resources:
+  - namespace.yaml
+  - mobility-events-topic.yaml
+  - auth-service.yaml
+  - user-service.yaml
+  - driver-service.yaml
+  - trip-service.yaml
+  - dispatch-service.yaml
+  - ai-dispatch-brain.yaml
+  - geo-service.yaml
+  - payment-service.yaml
+  - notification-service.yaml
+  - analytics-service.yaml
+

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: urban-mobility
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: ghcr.io/motofix/user-service:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: mobility-platform-config
+          env:
+            - name: HTTP_ADDR
+              value: ":8080"
+            - name: FIREBASE_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: firebase-config
+                  key: project_id
+            - name: FIREBASE_ADMIN_CREDENTIALS_B64
+              valueFrom:
+                secretKeyRef:
+                  name: firebase-admin
+                  key: credentials_b64
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: urban-mobility
+spec:
+  selector:
+    app: user-service
+  ports:
+    - port: 80
+      targetPort: 8080
+

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geo-service
+  namespace: urban-mobility
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: geo-service
+  template:
+    metadata:
+      labels:
+        app: geo-service
+    spec:
+      containers:
+        - name: geo-service
+          image: ghcr.io/motofix/geo-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HTTP_ADDR
+              value: ":8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: geo-service
+  namespace: urban-mobility
+spec:
+  selector:
+    app: geo-service
+  ports:
+    - port: 80
+      targetPort: 8080
+

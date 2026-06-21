@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-dispatch-brain
+  namespace: urban-mobility
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-dispatch-brain
+  template:
+    metadata:
+      labels:
+        app: ai-dispatch-brain
+    spec:
+      containers:
+        - name: ai-dispatch-brain
+          image: ghcr.io/motofix/ai-dispatch-brain:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HTTP_ADDR
+              value: ":8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-dispatch-brain
+  namespace: urban-mobility
+spec:
+  selector:
+    app: ai-dispatch-brain
+  ports:
+    - port: 80
+      targetPort: 8080
+

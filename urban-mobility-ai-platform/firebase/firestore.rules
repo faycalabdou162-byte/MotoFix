@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    match /public_cities/{cityId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /trip_state/{docId} {
+      allow read: if isSignedIn() && (uid() in resource.data.participants);
+      allow write: if false;
+    }
+
+    match /driver_state/{docId} {
+      allow read: if false;
+      allow create, update: if isSignedIn() && request.resource.data.driverId == uid();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
